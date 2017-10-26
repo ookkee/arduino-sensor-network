@@ -10,8 +10,7 @@ const fs = require("fs");
 const path = require("path");
 var glob = require("glob-fs")({ gitignore: true });
 
-// Cannot use absolute paths for some reason...
-var p = path.relative(".","/dev") + "rfcomm*";
+var p = path.relative(".","/dev") + "/rfcomm*";
 var commports = glob.readdirSync(p, {});
 
 const Readline = SerialPort.parsers.Readline;
@@ -23,16 +22,17 @@ for (i in commports) {
   ports.push(new SerialPort(commports[i]));
   parsers.push(new Readline());
   ports[i].pipe(parsers[i]);
+  parsers[i].id = i;
   parsers[i].on("data", function (e) {
     e = e.replace("\n","");
     e = e.replace("\r","");
-    sensorlines[i] = e;
+    sensorlines[this.id] = e;
   });
 }
 
 setInterval(function() {
   for (i in commports) {
-    console.log(sensorlines[i]);
+    console.log("sensor "+i+":"+sensorlines[i]);
   }
 }, 1000);
 
