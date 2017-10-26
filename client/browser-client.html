@@ -1,0 +1,157 @@
+<head>
+  <style>
+    div.smoothie-chart-tooltip {
+      background: #444;
+      padding: 1em;
+      margin-top: 20px;
+      font-family: consolas;
+      color: white;
+      font-size: 10px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+<script type="text/javascript" src="lib/smoothie.js"></script>
+<script type="text/javascript" src="lib/jquery-3.2.1.min.js"></script>
+<div id="legend">Legend</div>
+<h2>Temperature</h2>
+<canvas id="temp" width="640" height="200"></canvas>
+<h2>Humidity</h2>
+<canvas id="humid" width="640" height="200"></canvas>
+<h2>Light</h2>
+<canvas id="light" width="640" height="200"></canvas>
+<h2>Motion</h2>
+<div id="motion"></div>
+
+<script type="text/javascript">
+  // colors for lines
+  var colors = ["#ff0000","#00ff00","#0000ff","#ffff00","#ff00ff","#00ffff"]
+
+  var smoothie_temp = new SmoothieChart({
+    millisPerPixel:34,
+    grid:{verticalSections:10},
+    labels:{fontSize:11},
+    tooltip:true,
+    maxValue:35,
+    minValue:5
+  });
+  var smoothie_humid = new SmoothieChart({
+    millisPerPixel:34,
+    grid:{verticalSections:10},
+    labels:{fontSize:11},
+    tooltip:true,
+    maxValue:100,
+    minValue:0
+  });
+  var smoothie_light = new SmoothieChart({
+    millisPerPixel:34,
+    grid:{verticalSections:10},
+    labels:{fontSize:11},
+    tooltip:true,
+    maxValue:1000,
+    minValue:0
+  });
+
+  smoothie_temp.streamTo(document.getElementById("temp"), 1000);
+  smoothie_humid.streamTo(document.getElementById("humid"), 1000);
+  smoothie_light.streamTo(document.getElementById("light"), 1000);
+
+  $( document ).ready(function() {
+    // Get amount of sensors and build variables
+    var sensors; // has color and the "lines", i.e. TimeSeries
+    $.ajax({
+      url: 'http://localhost:8080/',
+      dataType: "jsonp",
+      jsonpCallback: "_testcb",
+      cache: false,
+      timeout: 1000,
+      success: function(data) {
+        console.log("begin");
+        var jsonObj = JSON.parse(data);
+        sensors = Array(jsonObj.sensors.length);
+        var legend = document.getElementById("legend");
+        for (i in jsonObj.sensors) {
+          var template = '{"Color":""';
+          if ("Temp" in jsonObj.sensors[i]) {
+            template += ',"Temp":""';
+          }
+          if ("Humidity" in jsonObj.sensors[i]) {
+            template += ',"Humidity":""';
+          }
+          if ("Light_a" in jsonObj.sensors[i]) {
+            template += ',"Light_a":""';
+          }
+          if ("Motion" in jsonObj.sensors[i]) {
+            template += ',"Motion":""';
+            var s = document.getElementById("motion");
+            s.innerHTML += '<div id="motion' + i + '"></div>';
+          }
+          template += '}';
+          sensors[i] = JSON.parse(template);
+          sensors[i].Color = colors[i];
+          sensors[i].Temp = new TimeSeries();
+          sensors[i].Humidity = new TimeSeries();
+          sensors[i].Light_a = new TimeSeries();
+
+          smoothie_temp.addTimeSeries( sensors[i].Temp, {lineWidth:2.5,strokeStyle:colors[i]});
+          smoothie_humid.addTimeSeries(sensors[i].Humidity, {lineWidth:2.5,strokeStyle:colors[i]});
+          smoothie_light.addTimeSeries(sensors[i].Light_a, {lineWidth:2.5,strokeStyle:colors[i]});
+
+          legend.innerHTML = '<span style="color:' + colors[i] + ';"> Sensor ' + i + '</span>';
+        }
+      },
+      error: function(jqXHR, textStatus, errorThrown) {
+          alert('error ' + textStatus + " " + errorThrown);
+      }
+    });
+
+    // Get sensor values
+    setInterval(function() {
+      $.ajax({
+        url: 'http://localhost:8080/',
+        dataType: "jsonp",
+        jsonpCallback: "_testcb",
+        cache: false,
+        timeout: 1000,
+        success: function(data) {
+          var jsonObj = JSON.parse(data)
+          for (i in jsonObj.sensors) {
+            if ("Temp" in jsonObj.sensors[i]) {
+              var temp = parseFloat(jsonObj.sensors[i].Temp);
+              sensors[i].Temp.append(jsonObj.timestamp, parseFloat(temp));
+            }
+            if ("Humidity" in jsonObj.sensors[i]) {
+              var humid = parseFloat(jsonObj.sensors[i].Humidity);
+              sensors[i].Humidity.append(jsonObj.timestamp, parseFloat(humid));
+            }
+            if ("Light_a" in jsonObj.sensors[i]) {
+              var light = parseFloat(jsonObj.sensors[i].Light_a);
+              sensors[i].Light_a.append(jsonObj.timestamp, parseFloat(light));
+            }
+            // PSEUDOCODE FOR MOTION SENSOR, assuming it is true/false
+            if ("Motion" in jsonObj.sensors[i]) {
+              var motion = parseInt(jsonObj.sensors[i].Motion);
+              var htmlMotion = document.getElementById("motion" + i);
+              var text = "Sensor " + i + ": ";
+              if (motion == 1) {
+                sensors[i].Motion = jsonObj.timestamp;
+                text += "motion detected ";
+              }
+              else {
+                text += "no motion ";
+              }
+              text += "(last motion: " + new Date(sensors[i].Motion).toString("fi-FI") + ")";
+              htmlMotion.innerHTML = text;
+            }
+          }
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            alert('error ' + textStatus + " " + errorThrown);
+        }
+      });
+    }, 1000);
+  });
+
+</script>
+</body>
