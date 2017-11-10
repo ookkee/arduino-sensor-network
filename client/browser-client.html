@@ -1,5 +1,9 @@
 <head>
+  <meta charset="UTF-8">
   <style>
+    body {
+      font-family: Monaco, sans-serif;
+    }
     div.smoothie-chart-tooltip {
       background: #444;
       padding: 1em;
@@ -28,6 +32,7 @@
   // colors for lines
   var colors = ["#ff0000","#00ff00","#0000ff","#ffff00","#ff00ff","#00ffff"]
 
+  // Build temperature, humidity and light charts
   var smoothie_temp = new SmoothieChart({
     millisPerPixel:34,
     grid:{verticalSections:10},
@@ -67,10 +72,11 @@
       cache: false,
       timeout: 1000,
       success: function(data) {
-        console.log("begin");
+
         var jsonObj = JSON.parse(data);
         sensors = Array(jsonObj.sensors.length);
         var legend = document.getElementById("legend");
+
         for (i in jsonObj.sensors) {
           var template = '{"Color":""';
           if ("Temp" in jsonObj.sensors[i]) {
@@ -116,6 +122,7 @@
         timeout: 1000,
         success: function(data) {
           var jsonObj = JSON.parse(data)
+
           for (i in jsonObj.sensors) {
             if ("Temp" in jsonObj.sensors[i]) {
               var temp = parseFloat(jsonObj.sensors[i].Temp);
@@ -129,14 +136,13 @@
               var light = parseFloat(jsonObj.sensors[i].Light_a);
               sensors[i].Light_a.append(jsonObj.timestamp, parseFloat(light));
             }
-            // PSEUDOCODE FOR MOTION SENSOR, assuming it is true/false
             if ("Motion" in jsonObj.sensors[i]) {
               var motion = parseInt(jsonObj.sensors[i].Motion);
               var htmlMotion = document.getElementById("motion" + i);
-              var text = "Sensor " + i + ": ";
+              var text = "<span style='color:" + colors[i] +"'>Sensor " + i + "</span>: ";
               if (motion == 1) {
                 sensors[i].Motion = jsonObj.timestamp;
-                text += "motion detected ";
+                text += "<b>motion detected</b> ";
               }
               else {
                 text += "no motion ";
